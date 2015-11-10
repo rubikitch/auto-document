@@ -29,7 +29,7 @@
 ;; and first line of docstring. Document is inserted after empty line
 ;; below Commentary section. If auto document is found, it is
 ;; updated. So you can move it to any position.
-;; 
+;;
 ;; M-x auto-document inserts/updates auto document of current buffer.
 ;;
 ;; DON'T REMOVE THE EMPTY LINE JUST AFTER GENERATED DOCUMENT! Or
@@ -192,6 +192,7 @@
 ;;
 
 ;;; Code:
+(require 'dash)
 
 (defvar auto-document-version "$Id: auto-document.el,v 1.16 2010/05/04 09:00:52 rubikitch Exp $")
 (eval-when-compile (require 'cl))
@@ -201,7 +202,7 @@
 
 (defcustom adoc-command-list-header-message "Below are complete command list"
   "*The first line of `Commands' section."
-  :type 'string  
+  :type 'string
   :group 'auto-document)
 (defcustom adoc-command-name-format ";;  `%s'\n"
   "*Format string of listing command name."
@@ -209,11 +210,17 @@
   :group 'auto-document)
 (defcustom adoc-command-doc-format ";;    %s\n"
   "*Format string of docstring (1st line only)."
-  :type 'string  
+  :type 'string
+  :group 'auto-document)
+(defcustom adoc-command-keybinding-format ";;    Keybinding: %s\n"
+  "*Format string of line containing command keybinding.
+This format-string will be used by `substitute-command-keys' after replacing
+the %-sequence with the command name."
+  :type 'string
   :group 'auto-document)
 (defcustom adoc-option-list-header-message "Below are customizable option list"
   "*The first line of `Customizable Options' section."
-  :type 'string  
+  :type 'string
   :group 'auto-document)
 (defcustom adoc-option-name-format ";;  `%s'\n"
   "*Format string of listing option name."
@@ -221,25 +228,25 @@
   :group 'auto-document)
 (defcustom adoc-option-doc-format ";;    %s\n"
   "*Format string of docstring (1st line only)."
-  :type 'string  
+  :type 'string
   :group 'auto-document)
 (defcustom adoc-option-default-format ";;    default = %s\n"
   "*Format string of default value."
-  :type 'string  
+  :type 'string
   :group 'auto-document)
 (defcustom adoc-document-insert-position "\n;;; Commentary"
   "*Auto document is inserted after the occurrence of this string."
-  :type 'string  
+  :type 'string
   :group 'auto-document)
 (defcustom adoc-print-length 5
   "*Maximum length of list to print before abbreviating.
 See also `print-length'."
-  :type 'integer  
+  :type 'integer
   :group 'auto-document)
 (defcustom adoc-print-level 3
   "*Maximum depth of list nesting to print before abbreviating.
 See also `print-level'."
-  :type 'integer  
+  :type 'integer
   :group 'auto-document)
 (defcustom adoc-define-command-functions
   '( define-derived-mode define-compilation-mode
@@ -251,7 +258,7 @@ See also `print-level'."
 
 (defcustom adoc-exclude-file-regexp nil
   "*Regexp of files not to apply `auto-document'."
-  :type 'string  
+  :type 'string
   :group 'auto-document)
 
 (defun adoc-construct (buf)
@@ -260,30 +267,65 @@ See also `print-level'."
     (set-buffer buf)
     (goto-char (point-min))
     (adoc-construct-from-sexps
-     (loop with it
-           while (setq it (condition-case v (read (current-buffer)) (error nil)))
-           collect it))))
+     (cl-loop with it
+	      while (setq it (condition-case v (read (current-buffer)) (error nil)))
+	      collect it))))
 
 (defun adoc-construct-from-sexps (sexps)
-  (loop with doc
-        for sexp in sexps
-        for func = (car sexp)
-        for doc = (ignore-errors (nth (get func 'doc-string-elt) sexp))
-        when (and (stringp doc)
-                  (or (and (memq func '(defun* defun))
-                           (eq (car-safe (nth 4 sexp)) 'interactive))
-                      (memq func adoc-define-command-functions)))
-        collect (cons (nth 1 sexp) doc) into commands
-        when (and (stringp doc)
-                  (eq func 'defcustom))
-        collect (list (nth 1 sexp) doc (nth 2 sexp)) into options
-        finally (return (list commands options))))
+  (cl-loop with doc
+	   for sexp in sexps
+	   for func = (car sexp)
+	   for doc = (ignore-errors (nth (get func 'doc-string-elt) sexp))
+	   when (and (stringp doc)
+		     (or (and (memq func '(defun* defun))
+			      (eq (car-safe (nth 4 sexp)) 'interactive))
+			 (memq func adoc-define-command-functions)))
+	   collect (cons (nth 1 sexp) doc) into commands
+	   when (and (stringp doc)
+		     (eq func 'defcustom))
+	   collect (list (nth 1 sexp) doc (nth 2 sexp)) into options
+	   finally (return (list commands options))))
+
+(defun adoc-get-keymaps (buf)
+  "Return a list of keymaps that are used in the code in BUF."
+  (save-excursion
+    (set-buffer buf)
+    (goto-char (point-min))
+    (let ((sexps
+	   (cl-loop with it
+		    while (setq it (condition-case v
+				       (read (current-buffer)) (error nil)))
+		    collect it)))
+      (cl-remove-if-not
+       'keymapp
+       (mapcar 'eval
+	       (cl-remove-duplicates
+		(cl-delete
+		 nil
+		 (-flatten
+		  (cl-loop for sexp in sexps
+			   collect (cl-remove-if-not
+				    (lambda (x) (or (keymapp x)
+						    (and (symbolp x)
+							 (string-match "-map$" (symbol-name x))
+							 (not (functionp x))
+							 (not (subrp x)))))
+				    (-flatten (cdr sexp))))))))))))
+
+(defun adoc-keybinding-description (cmd &optional keymaps)
+  "Return a keybinding description for CMD based on KEYMAPS.
+The keybinding for CMD will be searched for in each keymap,
+and if not found there then `substitute-command-keys' will be
+used to find a global keybinding."
+  (let ((key1 (where-is-internal cmd (or keymaps overriding-local-map) t))
+	(key2 (substitute-command-keys (format "\\[%s]" cmd))))
+    (if (and key1 (not (equal key1 ""))) (key-description key1) key2)))
 
 (defun adoc-output (buf)
   "Scan for command definitions in BUF and generate command list."
   (destructuring-bind (commands options)
       (adoc-construct buf)
-    (adoc-output-commands commands)
+    (adoc-output-commands commands buf)
     (adoc-output-separator)
     (adoc-output-customizable-options options)))
 
@@ -293,11 +335,14 @@ See also `print-level'."
         (princ (format name-fmt name))
         (princ (format doc-fmt (substring doc 0 (string-match "$" doc))))))
 
-(defun adoc-output-commands (pairs)
-  (adoc-output-section-header "Commands" adoc-command-list-header-message)
-  (loop for (name . doc) in pairs do
-        (princ (format adoc-command-name-format name))
-        (princ (format adoc-command-doc-format (adoc-first-line doc)))))
+(defun adoc-output-commands (pairs buf)
+  (let ((keymaps (adoc-get-keymaps buf)))
+    (adoc-output-section-header "Commands" adoc-command-list-header-message)
+    (loop for (name . doc) in pairs do
+	  (princ (format adoc-command-name-format name))
+	  (princ (format adoc-command-doc-format (adoc-first-line doc)))
+	  (princ (format adoc-command-keybinding-format
+			 (adoc-keybinding-description name keymaps))))))
 
 (defun adoc-output-customizable-options (pairs)
   (adoc-output-section-header "Customizable Options" adoc-option-list-header-message)
@@ -322,7 +367,7 @@ See also `print-level'."
   (princ ";;\n")
   (princ (format ";; %s:\n" header-msg))
   (princ ";;\n"))
-                 
+
 (defun adoc-output-separator ()
   (princ ";;\n"))
 
@@ -335,7 +380,7 @@ See also `print-level'."
         (error "Cannot find Commentary section")
       (cond ((search-forward "\n;;; Commands:\n" nil t)
              ;; delete old document
-             (let ((s (match-beginning 0)) e) 
+             (let ((s (match-beginning 0)) e)
               (when (search-forward "\n\n" nil t)
                 (setq e (1- (point)))
                 (delete-region s e))))
