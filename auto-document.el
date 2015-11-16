@@ -193,6 +193,7 @@
 
 ;;; Code:
 (require 'dash)
+(require 'keymap-utils)
 
 (defvar auto-document-version "$Id: auto-document.el,v 1.16 2010/05/04 09:00:52 rubikitch Exp $")
 (eval-when-compile (require 'cl))
@@ -286,41 +287,6 @@ See also `print-level'."
 	   collect (list (nth 1 sexp) doc (nth 2 sexp)) into options
 	   finally (return (list commands options))))
 
-(defun adoc-get-keymaps (buf)
-  "Return a list of keymaps that are used in the code in BUF."
-  (save-excursion
-    (set-buffer buf)
-    (goto-char (point-min))
-    (let ((sexps
-	   (cl-loop with it
-		    while (setq it (condition-case v
-				       (read (current-buffer)) (error nil)))
-		    collect it)))
-      (cl-remove-if-not
-       'keymapp
-       (mapcar 'eval
-	       (cl-remove-duplicates
-		(cl-delete
-		 nil
-		 (-flatten
-		  (cl-loop for sexp in sexps
-			   collect (cl-remove-if-not
-				    (lambda (x) (or (keymapp x)
-						    (and (symbolp x)
-							 (string-match "-map$" (symbol-name x))
-							 (not (functionp x))
-							 (not (subrp x)))))
-				    (-flatten (cdr sexp))))))))))))
-
-(defun adoc-keybinding-description (cmd &optional keymaps)
-  "Return a keybinding description for CMD based on KEYMAPS.
-The keybinding for CMD will be searched for in each keymap,
-and if not found there then `substitute-command-keys' will be
-used to find a global keybinding."
-  (let ((key1 (where-is-internal cmd (or keymaps overriding-local-map) t))
-	(key2 (substitute-command-keys (format "\\[%s]" cmd))))
-    (if (and key1 (not (equal key1 ""))) (key-description key1) key2)))
-
 (defun adoc-output (buf)
   "Scan for command definitions in BUF and generate command list."
   (destructuring-bind (commands options)
@@ -336,13 +302,13 @@ used to find a global keybinding."
         (princ (format doc-fmt (substring doc 0 (string-match "$" doc))))))
 
 (defun adoc-output-commands (pairs buf)
-  (let ((keymaps (adoc-get-keymaps buf)))
+  (let ((keymaps (kmu-get-keymaps-in-file (buffer-file-name buf))))
     (adoc-output-section-header "Commands" adoc-command-list-header-message)
     (loop for (name . doc) in pairs do
 	  (princ (format adoc-command-name-format name))
 	  (princ (format adoc-command-doc-format (adoc-first-line doc)))
 	  (princ (format adoc-command-keybinding-format
-			 (adoc-keybinding-description name keymaps))))))
+			 (kmu-command-key-description name keymaps))))))
 
 (defun adoc-output-customizable-options (pairs)
   (adoc-output-section-header "Customizable Options" adoc-option-list-header-message)
@@ -380,10 +346,10 @@ used to find a global keybinding."
         (error "Cannot find Commentary section")
       (cond ((search-forward "\n;;; Commands:\n" nil t)
              ;; delete old document
-             (let ((s (match-beginning 0)) e)
-              (when (search-forward "\n\n" nil t)
-                (setq e (1- (point)))
-                (delete-region s e))))
+             (let ((s (match-beginning 0)) e) 
+	       (when (search-forward "\n\n" nil t)
+		 (setq e (1- (point)))
+		 (delete-region s e))))
             ((and (search-forward ";" nil t) (search-forward "\n\n" nil t))
              t)
             (t
