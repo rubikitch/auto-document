@@ -302,7 +302,7 @@ See also `print-level'."
         (princ (format doc-fmt (substring doc 0 (string-match "$" doc))))))
 
 (defun adoc-output-commands (pairs buf)
-  (let ((keymaps (kmu-get-keymaps-in-file (buffer-file-name buf))))
+  (let ((keymaps (kmu-keymaps-in-file (buffer-file-name buf))))
     (adoc-output-section-header "Commands" adoc-command-list-header-message)
     (loop for (name . doc) in pairs do
 	  (princ (format adoc-command-name-format name))
