@@ -85,6 +85,12 @@
 ;;    *Regexp of files not to apply `auto-document'.
 ;;    default = nil
 
+
+;;
+;; All of the above can customize by:
+;;      M-x customize-group RET auto-document RET
+;;
+
 ;;; Installation:
 ;;
 ;; Put auto-document.el to your load-path.
@@ -100,13 +106,6 @@
 ;;
 ;; (add-to-list 'before-save-hook 'auto-document-maybe)
 
-
-;;; Customize:
-;;
-;;
-;; All of the above can customize by:
-;;      M-x customize-group RET auto-document RET
-;;
 
 ;;; TODO:
 ;;
@@ -193,7 +192,7 @@
 
 ;;; Code:
 (require 'dash)
-(require 'keymap-utils)
+(require 'jb-misc-functions)
 
 (defvar auto-document-version "$Id: auto-document.el,v 1.16 2010/05/04 09:00:52 rubikitch Exp $")
 (eval-when-compile (require 'cl))
