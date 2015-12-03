@@ -80,7 +80,7 @@
 ;;    default = 3
 ;;  `adoc-define-command-functions'
 ;;    *Define command functions.
-;;    default = (quote (define-derived-mode define-compilation-mode easy-mmode-define-minor-mode define-minor-mode easy-mmode-define-global-mode ...))
+;;    default = '(define-derived-mode define-compilation-mode easy-mmode-define-minor-mode define-minor-mode easy-mmode-define-global-mode ...)
 ;;  `adoc-exclude-file-regexp'
 ;;    *Regexp of files not to apply `auto-document'.
 ;;    default = nil
@@ -192,6 +192,7 @@
 
 ;;; Code:
 (require 'dash)
+(require 'keymap-utils)
 (require 'jb-misc-functions)
 
 (defvar auto-document-version "$Id: auto-document.el,v 1.16 2010/05/04 09:00:52 rubikitch Exp $")
@@ -301,13 +302,13 @@ See also `print-level'."
         (princ (format doc-fmt (substring doc 0 (string-match "$" doc))))))
 
 (defun adoc-output-commands (pairs buf)
-  (let ((keymaps (kmu-keymaps-in-file (buffer-file-name buf))))
+  (let ((keymaps (jb-keymaps-in-file (buffer-file-name buf))))
     (adoc-output-section-header "Commands" adoc-command-list-header-message)
     (loop for (name . doc) in pairs do
 	  (princ (format adoc-command-name-format name))
 	  (princ (format adoc-command-doc-format (adoc-first-line doc)))
 	  (princ (format adoc-command-keybinding-format
-			 (kmu-command-key-description name keymaps))))))
+			 (jb-command-key-description name keymaps))))))
 
 (defun adoc-output-customizable-options (pairs)
   (adoc-output-section-header "Customizable Options" adoc-option-list-header-message)
@@ -408,50 +409,49 @@ How to send a bug report:
 (dont-compile
   (when (fboundp 'expectations)
     (expectations
-      (desc "defun")
-      (expect '(((foo . "foodoc")) nil)
-        (adoc-construct-from-sexps
-         '((defun foo ()
-             "foodoc"
-             (interactive)))))
-      (expect '(((foo2 . "foo2doc")) nil)
-        (adoc-construct-from-sexps
-         '((defun* foo2 ()
-             "foo2doc"
-             (interactive)))))
-      (expect '(nil nil)
-        (adoc-construct-from-sexps
-         '((defun* foo3 ()
-             "foo3doc"))))
-      (expect '(nil nil)
-        (adoc-construct-from-sexps
-         '((defun* foo4 ()
-             (interactive)))))
-      (expect '(nil nil)
-        (adoc-construct-from-sexps
-         '((defun func (arg)
-             "doc"
-             "string"
-             ))))
-      (desc "define-minor-mode")
-      (expect '(((foo-mode . "foo minor mode")) nil)
-        (adoc-construct-from-sexps
-         '((define-minor-mode foo-mode
-             "foo minor mode"))))
-      (desc "defcustom")
-      (expect '(nil ((custom-var "vardoc" 22)))
-        (adoc-construct-from-sexps
-         '((defcustom custom-var 22
-             "vardoc"))))
-      (desc "combination")
-      (expect '(((foo . "foodoc")) ((custom-var "vardoc" 22)))
-        (adoc-construct-from-sexps
-         '((defcustom custom-var 22
-             "vardoc")
-           (defun foo ()
-             "foodoc"
-             (interactive)))))
-      )))
+     (desc "defun")
+     (expect '(((foo . "foodoc")) nil)
+	     (adoc-construct-from-sexps
+	      '((defun foo ()
+		  "foodoc"
+		  (interactive)))))
+     (expect '(((foo2 . "foo2doc")) nil)
+	     (adoc-construct-from-sexps
+	      '((defun* foo2 ()
+		  "foo2doc"
+		  (interactive)))))
+     (expect '(nil nil)
+	     (adoc-construct-from-sexps
+	      '((defun* foo3 ()
+		  "foo3doc"))))
+     (expect '(nil nil)
+	     (adoc-construct-from-sexps
+	      '((defun* foo4 ()
+		  (interactive)))))
+     (expect '(nil nil)
+	     (adoc-construct-from-sexps
+	      '((defun func (arg)
+		  "doc"
+		  "string"
+		  ))))
+     (desc "define-minor-mode")
+     (expect '(((foo-mode . "foo minor mode")) nil)
+	     (adoc-construct-from-sexps
+	      '((define-minor-mode foo-mode
+		  "foo minor mode"))))
+     (desc "defcustom")
+     (expect '(nil ((custom-var "vardoc" 22)))
+	     (adoc-construct-from-sexps
+	      '((defcustom custom-var 22
+		  "vardoc"))))
+     (desc "combination")
+     (expect '(((foo . "foodoc")) ((custom-var "vardoc" 22)))
+	     (adoc-construct-from-sexps
+	      '((defcustom custom-var 22
+		  "vardoc")
+		(defun foo ()
+		  "foodoc"
+		  (interactive))))))))
 
 
 (provide 'auto-document)
