@@ -1,26 +1,29 @@
-;;; auto-document.el --- Automatic document generator of Emacs Lisp
+;;; auto-document.el --- Automatic documentation generator for elisp files
 ;; $Id: auto-document.el,v 1.16 2010/05/04 09:00:52 rubikitch Exp $
 
 ;; Copyright (C) 2009  rubikitch
 
+;; Filename: auto-document.el
+;; Description: Automatic documentation generator for elisp files
 ;; Author: rubikitch <rubikitch@ruby-lang.org>
-;; Keywords: docs, convenience, lisp
+;; Maintainer: Joe Bloggs <vapniks@yahoo.com>
+;; Created: 2009
+;; Version: 20151203.1522
+;; Package-Requires: ((dash "2.12.1") (keymap-utils "20151030.326"))
+;; Last-Updated: Thu Dec  3 15:57:15 2015
+;;           By: Joe Bloggs
+;;     Update #: 10
 ;; URL: http://www.emacswiki.org/cgi-bin/wiki/download/auto-document.el
-
-;; This file is free software; you can redistribute it and/or modify
-;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 2, or (at your option)
-;; any later version.
-
-;; This file is distributed in the hope that it will be useful,
-;; but WITHOUT ANY WARRANTY; without even the implied warranty of
-;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-;; GNU General Public License for more details.
-
-;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs; see the file COPYING.  If not, write to
-;; the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-;; Boston, MA 02110-1301, USA.
+;; Keywords: docs, convenience, lisp
+;; Compatibility: Tested with Emacs 24.5.1 on Ubuntu Linux
+;;
+;;
+;; Features that might be required by this library:
+;;
+;;   dash keymap-utils
+;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; 
 
 ;;; Commentary:
 ;;
@@ -37,16 +40,18 @@
 
 ;;; Commands:
 ;;
-;; Below are complete command list:
+;; Below is a complete list of commands:
 ;;
 ;;  `auto-document'
 ;;    Insert or update command list of current buffer.
+;;    Keybinding: M-x auto-document
 ;;  `auto-document-test'
 ;;    Display generated document of FILENAME.
+;;    Keybinding: M-x auto-document-test
 ;;
 ;;; Customizable Options:
 ;;
-;; Below are customizable option list:
+;; Below is a list of customizable options:
 ;;
 ;;  `adoc-command-list-header-message'
 ;;    *The first line of `Commands' section.
@@ -57,6 +62,9 @@
 ;;  `adoc-command-doc-format'
 ;;    *Format string of docstring (1st line only).
 ;;    default = ";;    %s\n"
+;;  `adoc-command-keybinding-format'
+;;    *Format string of line containing command keybinding.
+;;    default = ";;    Keybinding: %s\n"
 ;;  `adoc-option-list-header-message'
 ;;    *The first line of `Customizable Options' section.
 ;;    default = "Below are customizable option list"
@@ -80,7 +88,7 @@
 ;;    default = 3
 ;;  `adoc-define-command-functions'
 ;;    *Define command functions.
-;;    default = '(define-derived-mode define-compilation-mode easy-mmode-define-minor-mode define-minor-mode easy-mmode-define-global-mode ...)
+;;    default = (quote (define-derived-mode define-compilation-mode easy-mmode-define-minor-mode define-minor-mode easy-mmode-define-global-mode ...))
 ;;  `adoc-exclude-file-regexp'
 ;;    *Regexp of files not to apply `auto-document'.
 ;;    default = nil
@@ -132,7 +140,28 @@
 ;;  8) Type C-c C-c to send.
 ;;  # If you are a Japanese, please write in Japanese:-)
 
+;;; License:
+
+;; This file is free software; you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation; either version 2, or (at your option)
+;; any later version.
+
+;; This file is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+
+;; You should have received a copy of the GNU General Public License
+;; along with GNU Emacs; see the file COPYING.  If not, write to
+;; the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+;; Boston, MA 02110-1301, USA.
+;;
+
 ;;; History:
+
+;; 3-Dec-2015    Joe Bloggs  
+;;    Add support for displaying keybindings, and update documentation
 
 ;; $Log: auto-document.el,v $
 ;; Revision 1.16  2010/05/04 09:00:52  rubikitch
@@ -194,12 +223,14 @@
 (require 'dash)
 (require 'keymap-utils)
 
+;;;###autoload
 (defvar auto-document-version "$Id: auto-document.el,v 1.16 2010/05/04 09:00:52 rubikitch Exp $")
 (eval-when-compile (require 'cl))
 (defgroup auto-document nil
   "auto-document"
   :group 'lisp)
 
+;;;###autoload
 (defcustom adoc-command-list-header-message "Below are complete command list"
   "*The first line of `Commands' section."
   :type 'string
@@ -256,11 +287,13 @@ See also `print-level'."
   :type 'list
   :group 'auto-document)
 
+;;;###autoload
 (defcustom adoc-exclude-file-regexp nil
   "*Regexp of files not to apply `auto-document'."
   :type 'string
   :group 'auto-document)
 
+;;;###autoload
 (defun adoc-construct (buf)
   "Scan for command definitions in BUF and return data structure."
   (save-excursion
@@ -271,6 +304,7 @@ See also `print-level'."
 	      while (setq it (condition-case v (read (current-buffer)) (error nil)))
 	      collect it))))
 
+;;;###autoload
 (defun adoc-construct-from-sexps (sexps)
   (cl-loop with doc
 	   for sexp in sexps
@@ -286,6 +320,7 @@ See also `print-level'."
 	   collect (list (nth 1 sexp) doc (nth 2 sexp)) into options
 	   finally (return (list commands options))))
 
+;;;###autoload
 (defun adoc-output (buf)
   "Scan for command definitions in BUF and generate command list."
   (destructuring-bind (commands options)
@@ -294,17 +329,20 @@ See also `print-level'."
     (adoc-output-separator)
     (adoc-output-customizable-options options)))
 
+;;;###autoload
 (defun adoc-output-section (section pairs header-msg name-fmt doc-fmt)
   (adoc-output-section-header section header-msg)
   (loop for (name . doc) in pairs do
         (princ (format name-fmt name))
         (princ (format doc-fmt (substring doc 0 (string-match "$" doc))))))
 
+;;;###autoload
 (defun adoc-eval-keymap (keymap)
   "Return the keymap pointed to by KEYMAP, or KEYMAP itself if it is a keymap."
   (cond ((kmu-keymap-variable-p keymap) (eval keymap))
         ((keymapp keymap) keymap)))
 
+;;;###autoload
 (defun adoc-keymaps-in-file (file &optional eval)
   "Return a list of keymaps and variables pointing to keymaps that are used in FILE.
 If EVAL is non-nil eval any variables in the returned list."
@@ -342,6 +380,7 @@ If there is no key-sequence for command then a string in the form \"M-x CMD\" wi
           (key-description key))
       (format "M-x %s" cmd))))
 
+;;;###autoload
 (defun adoc-output-commands (pairs buf)
   (let ((keymaps (jb-keymaps-in-file (buffer-file-name buf))))
     (adoc-output-section-header "Commands" adoc-command-list-header-message)
@@ -351,6 +390,7 @@ If there is no key-sequence for command then a string in the form \"M-x CMD\" wi
 	  (princ (format adoc-command-keybinding-format
 			 (jb-command-key-description name keymaps))))))
 
+;;;###autoload
 (defun adoc-output-customizable-options (pairs)
   (adoc-output-section-header "Customizable Options" adoc-option-list-header-message)
   (loop for (name doc default) in pairs do
@@ -358,6 +398,7 @@ If there is no key-sequence for command then a string in the form \"M-x CMD\" wi
         (princ (format adoc-option-doc-format (adoc-first-line doc)))
         (princ (format adoc-option-default-format (adoc-prin1-to-string default)))))
 
+;;;###autoload
 (defun adoc-prin1-to-string (object)
   (let ((print-escape-newlines t)
         (print-escape-nonascii t)
@@ -365,19 +406,23 @@ If there is no key-sequence for command then a string in the form \"M-x CMD\" wi
         (print-level adoc-print-level))
     (prin1-to-string object)))
 
+;;;###autoload
 (defun adoc-first-line (str)
   "Get first line of STR."
   (substring str 0 (string-match "$" str)))
 
+;;;###autoload
 (defun adoc-output-section-header (section header-msg)
   (princ (concat ";;; " section ":\n"))
   (princ ";;\n")
   (princ (format ";; %s:\n" header-msg))
   (princ ";;\n"))
 
+;;;###autoload
 (defun adoc-output-separator ()
   (princ ";;\n"))
 
+;;;###autoload
 (defun adoc-prepare (buf)
   "Prepare to insert command list."
   (progn
@@ -396,6 +441,7 @@ If there is no key-sequence for command then a string in the form \"M-x CMD\" wi
             (t
              (error "Cannot prepare to insert command summary"))))))
 
+;;;###autoload
 (defun auto-document-maybe ()
   "Insert or update command list of current buffer if the major-mode is `emacs-lisp-mode'."
   (when (and (eq major-mode 'emacs-lisp-mode)
@@ -404,6 +450,7 @@ If there is no key-sequence for command then a string in the form \"M-x CMD\" wi
                                      (or buffer-file-name "")))))
     (ignore-errors (auto-document))))
 
+;;;###autoload
 (defun auto-document ()
   "Insert or update command list of current buffer."
   (interactive)
@@ -411,6 +458,7 @@ If there is no key-sequence for command then a string in the form \"M-x CMD\" wi
     (adoc-prepare (current-buffer))
     (insert (with-output-to-string (adoc-output (current-buffer))) "\n")))
 
+;;;###autoload
 (defun auto-document-test (filename)
   "Display generated document of FILENAME."
   (interactive "fDocument for Elisp: ")
