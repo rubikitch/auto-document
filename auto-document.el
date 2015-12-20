@@ -371,8 +371,8 @@ If there is no key-sequence for command then a string in the form \"M-x CMD\" wi
 		       (if (listp keymaps)
 			   ;; Note: don't bother trying to put this function in
 			   ;; a cl-flet form, or you won't be able to do the mapcar
-			   (mapcar 'eval-keymap keymaps)
-			 (eval-keymap keymaps))))
+			   (mapcar 'adoc-eval-keymap keymaps)
+			 (adoc-eval-keymap keymaps))))
 	 (key (where-is-internal cmd (or keymaps2 overriding-local-map) (unless sep t))))
     (if key
         (if sep
@@ -382,13 +382,13 @@ If there is no key-sequence for command then a string in the form \"M-x CMD\" wi
 
 ;;;###autoload
 (defun adoc-output-commands (pairs buf)
-  (let ((keymaps (jb-keymaps-in-file (buffer-file-name buf))))
+  (let ((keymaps (adoc-keymaps-in-file (buffer-file-name buf))))
     (adoc-output-section-header "Commands" adoc-command-list-header-message)
     (loop for (name . doc) in pairs do
 	  (princ (format adoc-command-name-format name))
 	  (princ (format adoc-command-doc-format (adoc-first-line doc)))
 	  (princ (format adoc-command-keybinding-format
-			 (jb-command-key-description name keymaps))))))
+			 (adoc-command-key-description name keymaps))))))
 
 ;;;###autoload
 (defun adoc-output-customizable-options (pairs)
