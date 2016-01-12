@@ -1,0 +1,74 @@
+* Commentary
+
+This package generates auto-generatable documents in the header in
+Emacs Lisp file. Currently it generates command list: command name
+and first line of docstring. Document is inserted after empty line
+below Commentary section. If auto document is found, it is
+updated. So you can move it to any position.
+
+M-x auto-document inserts/updates auto document of current buffer.
+
+DON'T REMOVE THE EMPTY LINE JUST AFTER THE GENERATED DOCUMENT! 
+Or `auto-document' will eat the hand-written documents.
+* Installation
+
+ - Put the library in a directory in the emacs load path, like ~/.emacs.d
+ - You can add a directory to your load-path with the following line in ~/.emacs
+   (add-to-list 'load-path (expand-file-name "~/elisp"))
+   where ~/elisp is the directory you want to add 
+   (you don't need to do this for ~/.emacs.d - it's added by default).
+ - Add the following to your ~/.emacs startup file: (require 'auto-document)
+* Commands & keybindings
+
+ Below is a complete list of commands:
+
+   - *auto-document* :
+    Insert or update command list of current buffer.\\
+    Keybinding: =M-x auto-document=
+   - *auto-document-test* :
+    Display generated document of FILENAME.\\
+    Keybinding: =M-x auto-document-test=
+
+* Customizable Options
+
+ Below is a list of customizable options:
+
+   - *adoc-command-list-header-message* :
+    *The first line of  - *Commands* : section.\\
+    default value: =Below are complete command list=
+   - *adoc-command-name-format* :
+    *Format string of listing command name.\\
+    default value: =   - *%s* :\n=
+   - *adoc-command-doc-format* :
+    *Format string of docstring (1st line only).\\
+    default value: =    %s\n=
+   - *adoc-command-keybinding-format* :
+    *Format string of line containing command keybinding.\\
+    default value: =    Keybinding: %s\n=
+   - *adoc-option-list-header-message* :
+    *The first line of  - *Customizable Options* : section.\\
+    default value: =Below are customizable option list=
+   - *adoc-option-name-format* :
+    *Format string of listing option name.\\
+    default value: =   - *%s* :\n=
+   - *adoc-option-doc-format* :
+    *Format string of docstring (1st line only).\\
+    default value: =    %s\n=
+   - *adoc-option-default-format* :
+    *Format string of default value.\\
+    default value: =    default = %s\n=
+   - *adoc-document-insert-position* :
+    *Auto document is inserted after the occurrence of this string.\\
+    default value: =\n Commentary=
+   - *adoc-print-length* :
+    *Maximum length of list to print before abbreviating.\\
+    default value: =5=
+   - *adoc-print-level* :
+    *Maximum depth of list nesting to print before abbreviating.\\
+    default value: =3=
+   - *adoc-define-command-functions* :
+    *Define command functions.\\
+    default value: =(quote (define-derived-mode define-compilation-mode easy-mmode-define-minor-mode define-minor-mode easy-mmode-define-global-mode ...))=
+   - *adoc-exclude-file-regexp* :
+    *Regexp of files not to apply  - *auto-document* :.\\
+    default value: =nil=
